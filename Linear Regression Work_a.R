@@ -1,8 +1,19 @@
 #install.packages("randomForest")
 #install.packages("caret")
+#install.packages("pracma")
+#install.packages("lars")
+#install.packages("rpart.plot")
 library("randomForest", lib.loc="~/R/win-library/3.4")
 library(multcomp)
 library('caret')
+library(pracma)
+library(stats)
+library(MASS)
+library(lars)
+library(rpart)
+library(e1071)
+library(rpart.plot)
+
 
 income <- na.omit(read.csv('Income_Data_2014.csv')) #Income data from data portal 
 
@@ -44,8 +55,35 @@ TrainModel <- step(emptyTrain, scope = list(lower = formula(emptyTrain), upper =
 #xVars <- colnames(Test)[c(2,3,7,12,15,17,28)]
 xVars <- colnames(Test)[c(-20)]
 targetVar <- "NUMPOINTS"
-fitted.results <- predict(TrainModel, newdata = Test[,xVars])
-confusion <-confusionMatrix(data = fitted.results, reference = Test[,targetVar], dnn = c("Predicted Default","Actual Default"))
+Test$PRED <- predict(TrainModel, newdata = Test[,xVars])
+
+plot(TrainModel)
+
+bc<-boxcox(TrainModel,lambda = seq(-3,3,1/10))
+lambda <-bc$x[which.max(bc$y)]
+
+#Training 
+boxempty <- lm(((NUMPOINTS^lambda-1)/lambda)~1,data = Train)
+boxfull <- lm(((NUMPOINTS^lambda-1)/lambda)~.,data = Train)
+boxModel <- step(boxempty, scope = list(lower = formula(boxempty), upper = formula(boxfull)), direction = "both")
+
+#Testing
+#xVars <- colnames(Test)[c(2,3,7,12,15,17,28)]
+xVarsb <- colnames(Test)[c(-20)]
+targetVarb <- "NUMPOINTS"
+Test$PREDb <- predict(boxModel, newdata = Test[,xVars])^(1/lambda)
+
+#Lasso Regression
+Cols <-scale(Train[,-20])
+las <-lars(Cols, Train[,20], type = "lasso")
+plot(las, plottype = "coefficients")
+plot(las,plottype = "Cp")
+cvlar <- cv.lars(Cols, Train[,20], type = "lasso")
+frac <- cvlar$index[which.min(cvlar$cv)]
+lascof <- predict.lars(las, type = "coefficients", mode = "fraction", s = frac)
+
+#Ridge Regression
+ridge <- lm.ridge(formula = NUMPOINTS~.,data = Train,lambda = seq(0,100,50))
 
 
 #random forest
