@@ -4,10 +4,8 @@ library("randomForest", lib.loc="~/R/win-library/3.4")
 library(multcomp)
 library('caret')
 
-setwd("C:/Users/Ben/Desktop/IIT/IPRO")
 income <- na.omit(read.csv('Income_Data_2014.csv')) #Income data from data portal 
 
-setwd("C:/Users/Ben/Desktop/IIT/IPRO/QGIS DATA")
 census_2010 <- na.omit(read.csv('Census_2010.csv')) #Census data
 fire_inc <-na.omit(read.csv('hereyagoben.csv'))
 
