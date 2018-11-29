@@ -1,0 +1,73 @@
+#install.packages("randomForest")
+#install.packages("caret")
+library("randomForest", lib.loc="~/R/win-library/3.4")
+library(multcomp)
+library('caret')
+
+setwd("C:/Users/Ben/Desktop/IIT/IPRO")
+income <- na.omit(read.csv('Income_Data_2014.csv')) #Income data from data portal 
+
+setwd("C:/Users/Ben/Desktop/IIT/IPRO/QGIS DATA")
+census_2010 <- na.omit(read.csv('Census_2010.csv')) #Census data
+fire_inc <-na.omit(read.csv('hereyagoben.csv'))
+
+#Merge fire data with census data
+data<- merge(census_2010,fire_inc, by.x = "GeogKey", by.y = "area_numbe") 
+data2 <- merge(data,income,by.x = "GeogKey",by.y = "Community.Area.Number")
+data3 <- data2[c(-1,-2,-68,-69,-70,-71,-72,-73,-74,-75,-77)]
+
+#Group ages together
+male_under20 <- c(data3$Male..10.to.14.years+data$Male..15.to.17.years+data3$Male..Under.5.years.old+data3$Male..5.to.9.years+data3$Male..18.and.19.years)
+male_20_to_55 <-data3$Male..20.years+data3$Male..21.years+data3$Male..22.to.24.years+data3$Male..25.to.29.years+data3$Male..30.to.34.years+data3$Male..35.to.39.years+data3$Male..40.to.44.years+data3$Male..45.to.49.years+data3$Male..50.to.54.years
+male_over_55 <-data3$Male..55.to.59.years+data3$Male..60.and.61.years+data3$Male..62.to.64.years+data3$Male..65.and.66.years+data3$Male..67.to.69.years+data3$Male..70.to.74.years+data3$Male..75.to.79.years+data3$Male..80.to.84.years+data3$Male..85.years.and.over
+
+female_under20 <-data3$Female..Under.5.years.old+data3$Female..5.to.9.years+data3$Female..10.to.14.years+data3$Female..15.to.17.years+data3$Female..18.and.19.years
+female_20_to_55 <-data3$Female..20.years+data3$Female..21.years+data3$Female..22.to.24.years+data3$Female..25.to.29.years+data3$Female..30.to.34.years+data3$Female..35.to.39.years+data3$Female..40.to.44.years+data3$Female..45.to.49.years+data3$Female..50.to.54.years
+female_over_55 <-data3$Female..55.to.59.years+data3$Female..60.and.61.years+data3$Female..62.to.64.years+data3$Female..65.and.66.years+data3$Female..67.to.69.years+data3$Female..70.to.74.years+data3$Female..75.to.79.years+data3$Female..80.to.84.years+data3$Female..85.years.and.over
+
+data3 <- data3[c(-10,-11,-12,-13,-14,-15,-16,-17,-18,-19,-20,-21,-22,-23,-24,-25,-26,-27,-28,-29,-30,-31,-32,-33,-34,-35,-36,-37,-38,-39,-40,-41,-42,-43,-44,-45,-46,-47,-48,-49,-50,-51,-52,-53,-54,-55)]
+data3 <- data.frame(data3,male_under20,male_20_to_55,male_over_55,female_under20,female_20_to_55,female_over_55)
+
+#This separate the training and the test data
+trainPct <- 0.8
+testPct <- 0.2
+set.seed(300)
+inTrain <- createDataPartition(y = data3$NUMPOINTS,p = trainPct, list = FALSE)
+Train <-data3[inTrain,]
+Test <- data3[-inTrain,]
+
+#Training 
+emptyTrain <- lm(NUMPOINTS~1,data = Train)
+fullTrain <- lm(NUMPOINTS~.,data = Train)
+TrainModel <- step(emptyTrain, scope = list(lower = formula(emptyTrain), upper = formula(fullTrain)), direction = "both")
+
+#Testing
+#xVars <- colnames(Test)[c(2,3,7,12,15,17,28)]
+xVars <- colnames(Test)[c(-20)]
+targetVar <- "NUMPOINTS"
+fitted.results <- predict(TrainModel, newdata = Test[,xVars])
+confusion <-confusionMatrix(data = fitted.results, reference = Test[,targetVar], dnn = c("Predicted Default","Actual Default"))
+
+
+#random forest
+#df <- data.frame(data3)
+#write.csv(df,'data.csv')
+#data3.rf = randomForest(NUMPOINTS~.,data = df,importance = T, ntree = 6, maxnodes = 5, keep.forest = TRUE)
+
+#importance(data3.rf,type = 1)
+#plot(data3.rf)
+#varImpPlot(data3.rf)
+
+#Create a model (Chicago Fire Index)
+#rev_Dat <- data3[c(3,19,29,31,8,15,25,28,30,22,23,26,18,21,20)]
+#myModel <- lm(NUMPOINTS~.,data = rev_Dat)
+#summary(myModel)
+#myAOV <- aov(myModel)
+#summary(myAOV)
+#plot(myAOV)
+#emptyModel <- lm(NUMPOINTS~1,data = data3)
+#fullModel <-lm(NUMPOINTS~.,data = data3)
+#ModelA <- step(emptyModel, scope = list(lower = formula(emptyModel), upper = formula(fullModel)), direction = "both")
+
+#Test model
+#data3a <- data3(1:40)
